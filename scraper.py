@@ -5,6 +5,7 @@ import pickle
 
 # Time to revisit a user
 REFRESH_TIME = 12 * 3600 # 12 hours
+SLEEP_TIME = .5
 
 usersVisitedSet = set()
 timeUsersVisited = deque()
@@ -19,7 +20,6 @@ def getReplayListForUser(userName):
         'offset': 0,
         'count': 20
     }
-    print 'Getting replay list for', userName
     return requests.get(baseUrl, params=data).json()
 
 def getReplayIdsAndUsersFromReplayList(replayList):
@@ -27,7 +27,7 @@ def getReplayIdsAndUsersFromReplayList(replayList):
     for game in replayList:
         games[game['id']] = []
         for user in game['ranking']:
-            if user['name'] != u'Anonymous':
+            if 'name' in user and user['name'] != u'Anonymous':
                 games[game['id']].append(user['name'])
 
     return games
@@ -51,7 +51,8 @@ def updateLists(visitedUser, gameList):
         replaysToDownload = replaysToDownload | {replayId}
 
         for user in gameList[replayId]:
-            if user in usersVisitedSet:
+            if (user in usersVisitedSet or
+                    user in usersToVisit):
                 continue
             # we haven't seen this user, so let's add them to the list of users to visit
             usersToVisit.append(user)
@@ -72,7 +73,6 @@ def addStaleUsers():
             done = True
 
 def downloadReplay(replayId):
-    print 'Downloading {}.gior'.format(replayId)
     baseUrl = 'http://generals.io/{}.gior'
     data = requests.get(baseUrl.format(replayId)).content
     with open('replays/{}.gior'.format(replayId), 'w') as fileOut:
@@ -86,7 +86,7 @@ def saveState():
         'timeUsersVisited':timeUsersVisited,
         'replaysDownloaded':replaysDownloaded,
         'replaysToDownload':replaysToDownload,
-        'usersToVisit':usersToVisit
+        'usersToVisit':deque(set(usersToVisit))
     }
     with open('scraperState.p', 'w') as fileOut:
         pickle.dump(state, fileOut)
@@ -95,19 +95,21 @@ def loadState():
     global usersVisitedSet, timeUsersVisited, replaysDownloaded 
     global replaysToDownload, usersToVisit
     with open('scraperState.p', 'rb') as fileIn:
-        state = pickle.load(fileOut)
+        state = pickle.load(fileIn)
     usersVisitedSet = state['usersVisitedSet']
     timeUsersVisited = state['timeUsersVisited']
     replaysDownloaded = state['replaysDownloaded']
     replaysToDownload = state['replaysToDownload']
-    usersToVisit = state['usersToVisit']
+    usersToVisit = deque(set(state['usersToVisit']))
 
 def scrape():
     global usersVisitedSet, timeUsersVisited, replaysDownloaded 
     global replaysToDownload, usersToVisit
     userList = list(usersToVisit)
     addStaleUsers()
-    for user in userList:
+    for i, user in enumerate(userList):
+        print u'Visiting {}'.format(user), 
+        print i, '/', len(userList)
         usersToVisit.popleft()
         time.sleep(1)
         replayList = getReplayListForUser(user)
@@ -115,8 +117,10 @@ def scrape():
         updateLists(user, games)
     
     replayList = list(replaysToDownload)
-    for replayId in replayList:
+    for i, replayId in enumerate(replayList):
         time.sleep(1)
+        print 'Downloading {}.gior'.format(replayId), 
+        print i, '/', len(replayList)
         downloadReplay(replayId)
 
     replaysDownloaded = replaysDownloaded | replaysToDownload
@@ -128,4 +132,7 @@ def scrape():
     print 'Num replays to download', len(replaysToDownload)
     print 'Num replays downloaded', len(replaysDownloaded)
 
-
+def scraperLoop():
+    while True:
+        scrape()
+        saveState()
