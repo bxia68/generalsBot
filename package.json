@@ -1,0 +1,23 @@
+{
+  "name": "replayextractor",
+  "version": "1.0.0",
+  "description": "extracts top replays from generals.io",
+  "main": "converter.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ewfuentes/generalsScraper.git"
+  },
+  "author": "Bill Xia",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/ewfuentes/generalsScraper/issues"
+  },
+  "homepage": "https://github.com/ewfuentes/generalsScraper#readme",
+  "dependencies": {
+    "lz-string": "^1.4.4"
+  },
+  "devDependencies": {}
+}
